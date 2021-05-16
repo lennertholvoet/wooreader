@@ -7,5 +7,11 @@ Code is messy now, since I'm getting accustomed with Wordpress Plugin Developmen
 ## Yet another Wordpress Plugin
 WooReader is a plugin to show digital files on your website to user who purchased something via your WooCommerce shop.
 These files could be one on one for a digtal sale, but also to give extra documents to customers who purchased a fysical work.
-## Warranty
-This product provides no warranty. This is an in-
+## Functions
+ - [x] Create a Digital Document
+ - [x] Set basic metadata (Title And Author)
+ - [ ] Add more advanced metadata
+ - [x] Upload Files to Digital Document
+ - [x] Set Main File and Cover Image for Digital Document
+ - [ ] Link Digital Document to WooCommerce Shop Item
+ - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought
