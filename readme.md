@@ -13,5 +13,9 @@ These files could be one on one for a digtal sale, but also to give extra docume
  - [ ] Add more advanced metadata
  - [x] Upload Files to Digital Document
  - [x] Set Main File and Cover Image for Digital Document
- - [ ] Link Digital Document to WooCommerce Shop Item
- - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought
+ - [ ] Link Digital Document to WooCommerce Shop Item (!)
+ - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought (!)
+ - [ ] Create Backup / Import option
+ 	- [ ] Export database
+ 	- [ ] Zip uploads/wooreader + SQL Files
+ 	- [ ] Extract ZIP + database import
