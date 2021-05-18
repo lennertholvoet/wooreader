@@ -17,11 +17,14 @@ define('MAX_UPLOAD_SIZE', $max_upload);
 wp_register_style('bulma-css', WPFP_PATH . '/node_modules/bulma/css/bulma.min.css' );
 wp_register_style('dropzone-css', WPFP_PATH . '/js/dropzone/dist/dropzone.css' );
 wp_register_style('tree-css', WPFP_PATH . '/css/tree.css' );
+wp_register_style('bulma-tagsinput-css', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css');
 wp_enqueue_style('bulma-css');
 wp_enqueue_style('dropzone-css');
 wp_enqueue_style('tree-css');
+wp_enqueue_style('bulma-tagsinput-css');
 wp_enqueue_script('dropzone-js', WPFP_PATH . '/js/dropzone/dist/dropzone.js');
 wp_enqueue_script('tree-js', WPFP_PATH . '/js/treejs/tree.js');
+wp_enqueue_script('bulma-tagsinput-js', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/js/bulma-tagsinput.min.js');
 ?>
 <?php
 function setup_wooreader() {
@@ -324,17 +327,43 @@ function woo_reader_edit_document($uuid = null) {
     <h2>WooCommerce Link</h2>
     <?php
         $pList = get_woocommerce_products();
+         foreach ($pList as $key => $value) {
+            ?>
+<!-- <?= $value->post_title;?> <i>(<?= $value->sku;?>)</i> -->
+<?php
+         }
     ?>  
-    <?php 
-        foreach ($pList as $key => $value) {
-    ?>
-        <label class="checkbox block">
-            <input type="checkbox">
-            <?= $value->post_title;?> <i>(<?= $value->sku;?>)</i>
-        </label>
-    <?php
-        }
-    ?>
+    <div class="field">
+    <label class="label">Tags</label>
+    <div class="control">
+        <input id="tags-with-source" class="input" type="text" data-type="tags" placeholder="Choose Tags">
+    </div>
+    <script type="text/javascript">
+        //BulmaTagsInput.attach();
+        document.addEventListener('DOMContentLoaded', function() {
+        const tagsInput = document.getElementById('tags-with-source');
+        new BulmaTagsInput(tagsInput, {
+            closeDropdownOnItemSelect: false,
+            freeInput: false,
+            caseSensitive : false ,
+            clearSelectionOnTyping: true,
+            source : async function(value) {
+                // Value equal input value
+                // We can then use it to request data from external API
+                return await fetch(ajaxurl + '?action=get_woo_demo&value=' + value)
+                    .then(function(response) {
+                        return response.json();
+                    });
+            } ,
+            itemText : 'product_name' ,
+            itemValue : 'sku'
+            
+        });
+    }, false);
+    </script>
+</div>
+
+
     </div>
     <script>
         let selectedFolder = ''
@@ -628,6 +657,16 @@ add_action( 'wp_ajax_toggle_published_status', 'toggle_published_status' );
 add_action( 'wp_ajax_load_list_page', 'load_list_page' );
 add_action( 'wp_ajax_load_file_list', 'load_file_list' );
 add_action( 'wp_ajax_update_default_files', 'update_default_files' );
+add_action( 'wp_ajax_get_woo_demo', 'get_woo_demo' );
+
+function get_woo_demo() {
+    //echo json_encode(['foo' , 'bar']);
+    global $wpdb;
+    $query = "SELECT a.id,a.post_title,b.sku FROM `".$wpdb->prefix."posts` a JOIN `".$wpdb->prefix."wc_product_meta_lookup` b ON a.id = b.product_id WHERE a.`post_type` = 'product'";
+    $q = $wpdb->get_results($query);
+    echo json_encode($q);
+    wp_die();
+}
 
 function dropzone_upload() {
     $folder = mySplit($_POST['fullPath']);
