@@ -14,6 +14,8 @@ These files could be one on one for a digtal sale, but also to give extra docume
  - [x] Upload Files to Digital Document
  - [x] Set Main File and Cover Image for Digital Document
  - [ ] Link Digital Document to WooCommerce Shop Item (!)
+ 	- [ ] Create interface : searchable
+ 	- [ ] Save connections to DB in UUID - SKU pairs
  - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought (!)
  - [ ] Create Backup / Import option
  	- [ ] Export database
