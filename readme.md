@@ -11,12 +11,16 @@ These files could be one on one for a digtal sale, but also to give extra docume
  - [x] Create a Digital Document
  - [x] Set basic metadata (Title And Author)
  - [ ] Add more advanced metadata
+   - [ ] ISBN
  - [x] Upload Files to Digital Document
  - [x] Set Main File and Cover Image for Digital Document
+ - [ ] Method to use subscription from WooCommerce to access all content
  - [ ] Link Digital Document to WooCommerce Shop Item (!)
  	- [ ] Create interface : searchable
  	- [ ] Save connections to DB in UUID - SKU pairs
  - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought (!)
+ - [ ] Reader
+   - [ ] Browsable by WooCommerce Category
  - [ ] Create Backup / Import option
  	- [ ] Export database
  	- [ ] Zip uploads/wooreader + SQL Files

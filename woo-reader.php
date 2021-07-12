@@ -37,6 +37,7 @@ function setup_wooreader() {
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `title` varchar(1024) DEFAULT NULL,
                 `author` varchar(1024) DEFAULT NULL,
+                `isbn` varchar(24) DEFAULT NULL,
                 `doctype` varchar(50) DEFAULT NULL,
                 `uuid` varchar(36) NOT NULL,
                 `mainfile` varchar(50) DEFAULT NULL,
@@ -288,11 +289,36 @@ function woo_reader_edit_document($uuid = null) {
             </div>
         </div>
         <div class="field">
+            <label class="label">ISBN:</label>
+            <div class="control has-icons-left has-icons-right">
+            <input class="input" name="isbn" type="text" placeholder="ISBN" value="">
+            <span class="icon is-small is-left">
+                <i class="dashicons dashicons-info-outline"></i>
+            </span>
+            </div>
+        </div>
+        <div class="field">
             <div class="control">
                 <button class="button is-info" id="save-metadata">Submit</button>
                 <span id="save-medata-confirm"></span>
             </div>
         </div>
+        
+        <hr />
+    <h1>Linked WooCommerce Products:</h1>
+    <?php
+        $pList = get_woocommerce_products();
+         foreach ($pList as $key => $value) {
+            ?>
+<!-- <?= $value->post_title;?> <i>(<?= $value->sku;?>)</i> -->
+<?php
+         }
+    ?>  
+    <div class="field">
+    <div class="control">
+        <!--<input id="tags-with-source" class="input" type="text" data-type="tags" placeholder="Choose Tags">-->
+        <input id="tags-with-source" class="input" type="text" data-item-text="post_title" data-item-value="numericCode" data-case-sensitive="false" placeholder="Try finding a country name" value="One,Two">
+    </div>
         <hr />
 
     <h1>Files</h1>
@@ -323,30 +349,20 @@ function woo_reader_edit_document($uuid = null) {
 
             <!-- AJAX call to get filelist + actions to set MAIN file / select upload folder / delete files-folders -->
     </div>
-        <hr />
-    <h2>WooCommerce Link</h2>
-    <?php
-        $pList = get_woocommerce_products();
-         foreach ($pList as $key => $value) {
-            ?>
-<!-- <?= $value->post_title;?> <i>(<?= $value->sku;?>)</i> -->
-<?php
-         }
-    ?>  
-    <div class="field">
-    <label class="label">Tags</label>
-    <div class="control">
-        <input id="tags-with-source" class="input" type="text" data-type="tags" placeholder="Choose Tags">
-    </div>
+
     <script type="text/javascript">
-        //BulmaTagsInput.attach();
-        document.addEventListener('DOMContentLoaded', function() {
-        const tagsInput = document.getElementById('tags-with-source');
-        new BulmaTagsInput(tagsInput, {
+        BulmaTagsInput.attach();
+        //document.addEventListener('DOMContentLoaded', function() {
+        //let tagsInput = document.getElementById('tags-with-source');
+        //tagsInput.BulmaTagsInput().add(['john', 'jane']);
+        /**
+        let bti = new BulmaTagsInput(tagsInput, {
+            add : ['john' , 'jane'] ,
             closeDropdownOnItemSelect: false,
             freeInput: false,
             caseSensitive : false ,
             clearSelectionOnTyping: true,
+            highlightDuplicate: true,
             source : async function(value) {
                 // Value equal input value
                 // We can then use it to request data from external API
@@ -355,11 +371,13 @@ function woo_reader_edit_document($uuid = null) {
                         return response.json();
                     });
             } ,
-            itemText : 'product_name' ,
-            itemValue : 'sku'
-            
-        });
-    }, false);
+            itemText : 'post_title' ,
+            itemValue : 'sku' 
+        }) 
+        **/
+        //tagsInput.BulmaTagsInput().item();
+    //}, false);
+
     </script>
 </div>
 
@@ -662,7 +680,8 @@ add_action( 'wp_ajax_get_woo_demo', 'get_woo_demo' );
 function get_woo_demo() {
     //echo json_encode(['foo' , 'bar']);
     global $wpdb;
-    $query = "SELECT a.id,a.post_title,b.sku FROM `".$wpdb->prefix."posts` a JOIN `".$wpdb->prefix."wc_product_meta_lookup` b ON a.id = b.product_id WHERE a.`post_type` = 'product'";
+    $search = $_POST['value'];
+    $query = "SELECT a.id,a.post_title,b.sku FROM `".$wpdb->prefix."posts` a JOIN `".$wpdb->prefix."wc_product_meta_lookup` b ON a.id = b.product_id WHERE a.`post_type` = 'product' AND (a.`post_title` LIKE '%$value%' OR b.`sku` LIKE '%$value%')";
     $q = $wpdb->get_results($query);
     echo json_encode($q);
     wp_die();
