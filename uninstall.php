@@ -12,7 +12,8 @@ delete_option($option_name);
 delete_site_option($option_name);
  $tables = array(
         'wooreader_settings' ,
-        'wooreader_documents'  
+        'wooreader_documents'  ,
+        'wooreader_woocommerce_link'
     );
 // drop a custom database table
 global $wpdb;

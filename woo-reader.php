@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooReader
  * Description: Show digital content to users who bought the corresponding item in the WooCommerce Webshop
- * Version: 0.3.1
+ * Version: 0.5.2
  * Author: Lennert Holvoet
  * Author Uri: https://www.denstylo.be/
  * License: GPLv3 or later
@@ -18,10 +18,12 @@ wp_register_style('bulma-css', WPFP_PATH . '/node_modules/bulma/css/bulma.min.cs
 wp_register_style('dropzone-css', WPFP_PATH . '/js/dropzone/dist/dropzone.css' );
 wp_register_style('tree-css', WPFP_PATH . '/css/tree.css' );
 wp_register_style('bulma-tagsinput-css', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css');
+wp_register_style('wooreader-css', WPFP_PATH . '/css/wooreader-css.css');
 wp_enqueue_style('bulma-css');
 wp_enqueue_style('dropzone-css');
 wp_enqueue_style('tree-css');
 wp_enqueue_style('bulma-tagsinput-css');
+wp_enqueue_style('wooreader-css');
 wp_enqueue_script('dropzone-js', WPFP_PATH . '/js/dropzone/dist/dropzone.js');
 wp_enqueue_script('tree-js', WPFP_PATH . '/js/treejs/tree.js');
 wp_enqueue_script('bulma-tagsinput-js', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/js/bulma-tagsinput.min.js');
@@ -45,14 +47,14 @@ function setup_wooreader() {
                 `published` tinyint(1) NOT NULL DEFAULT 0,
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uuid` (`uuid`)
-                ) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;" ,
+                ) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" ,
         'wooreader_woocommerce_link' => 
             "CREATE TABLE IF NOT EXISTS `".$wpdb->prefix."wooreader_woocommerce_link` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `wooreader_uuid` varchar(36) NOT NULL DEFAULT '',
                 `woocommerce_sku` varchar(128) NOT NULL DEFAULT '',
                 PRIMARY KEY (`id`)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
     );
     
     foreach ($tables as $key => $sql) {
@@ -64,8 +66,39 @@ function setup_wooreader() {
     $ht = fopen($dir.'.htaccess','w');
     fwrite($ht, 'deny from all');
     fclose($ht);
+
+
 }
+
+function add_my_custom_page() {
+    // Create post object
+    $my_post = array(
+      'post_title'    => wp_strip_all_tags( 'Woo Test' ),
+      'post_status'   => 'publish' ,
+      'post_type'     => 'page',
+      'post_content' => '[greeting]'
+     );
+
+    // Insert the post into the database
+    wp_insert_post( $my_post );
+}
+
+register_activation_hook(__FILE__, 'add_my_custom_page');
+
 add_action( 'admin_menu', 'woo_reader_options_page' );
+
+// function that runs when shortcode is called
+function wpb_demo_shortcode() {
+ 
+// Things that you want to do.
+    $message = 'Hello,<br />'; 
+    $message .= '<pre>' . print_r(wp_get_current_user()) . '</pre>';
+ 
+// Output needs to be return
+    return $message;
+}
+// register shortcode
+add_shortcode('greeting', 'wpb_demo_shortcode');
 
 function woo_reader_options_page() {
     add_menu_page(
@@ -291,12 +324,23 @@ function woo_reader_edit_document($uuid = null) {
         <div class="field">
             <label class="label">ISBN:</label>
             <div class="control has-icons-left has-icons-right">
+            <input class="input" name="isbn" type="text" placeholder="isbn" value="">
+            <span class="icon is-small is-left">
+                <i class="dashicons dashicons-id"></i>
+            </span>
+            </div>
+        </div>
+        <!-- 
+        <div class="field">
+            <label class="label">ISBN:</label>
+            <div class="control has-icons-left has-icons-right">
             <input class="input" name="isbn" type="text" placeholder="ISBN" value="">
             <span class="icon is-small is-left">
                 <i class="dashicons dashicons-info-outline"></i>
             </span>
             </div>
         </div>
+        -->
         <div class="field">
             <div class="control">
                 <button class="button is-info" id="save-metadata">Submit</button>
@@ -306,19 +350,131 @@ function woo_reader_edit_document($uuid = null) {
         
         <hr />
     <h1>Linked WooCommerce Products:</h1>
-    <?php
-        $pList = get_woocommerce_products();
-         foreach ($pList as $key => $value) {
-            ?>
-<!-- <?= $value->post_title;?> <i>(<?= $value->sku;?>)</i> -->
-<?php
-         }
-    ?>  
-    <div class="field">
-    <div class="control">
-        <!--<input id="tags-with-source" class="input" type="text" data-type="tags" placeholder="Choose Tags">-->
-        <input id="tags-with-source" class="input" type="text" data-item-text="post_title" data-item-value="numericCode" data-case-sensitive="false" placeholder="Try finding a country name" value="One,Two">
+    <div>
+    <div class="field has-addons">
+        <div class="control is-expanded">
+            <input id="search_products" class="input" type="text" placeholder="Zoek producten...">
+        </div>
+        <div class="control">
+            <a class="button is-info" id="refresh_product_list">REFRESH</a>
+        </div>
     </div>
+    <div class="field">
+            <div class="buttons are-medium assigned_results"></div>
+            <div class="buttons are-medium search_results"></div>
+    </div>
+    </div>
+        <script type="text/javascript">
+                let refreshButton = document.getElementById('refresh_product_list')
+                refreshButton.addEventListener('click' , function() {
+                    getWooProducts()
+                })
+                var uuid = '<?= $uuid; ?>'
+                function getWooProducts(searchInputText = '') {
+                    jQuery.get(ajaxurl , { action : 'get_woo_products' , uuid : '<?= $uuid; ?>' } , function(resp) {
+                        addButtonAssigned(resp.assigned,document.getElementById('search_products').value)
+                        addButtonUnassigned(resp.unassigned,document.getElementById('search_products').value)
+                        let searchInput = document.getElementById('search_products')
+                        searchInput.addEventListener('input' , function(e) {
+                            console.log(e.target.value)
+                            let results = search(resp['unassigned'],e.target.value)
+                            addButtonUnassigned(results,e.target.value)
+                        })
+                        document.getElementById('search_products').value = searchInputText
+                        if(searchInputText != '') {
+                            let results = search(resp['unassigned'],searchInputText)
+                            addButtonUnassigned(results,searchInputText)
+                        }
+                    } , 'json')
+                }
+
+                function search(json,str) {
+                    if (str == '') {
+                        return json
+                    }
+                    let results = {}
+                    let keys = Object.keys(json)
+                    let searchStr = str.toUpperCase()
+                    for(let i = 0 ; i < keys.length ; i++) {
+                        let thisKey = keys[i]
+                        let searchObject = json[thisKey]
+                        if (searchObject && searchObject.title && searchObject.title.toUpperCase().indexOf(searchStr) !== -1) {
+                            //results.push(searchObject);
+                            let sku = searchObject.sku
+                            Object.assign(results,{ [sku] : searchObject})
+                        }
+                    }
+                    return results;
+                }
+
+                function addButtonAssigned(json,searchInputText){
+                    jQuery('.assigned_results').empty()
+                    if(json == null || Object.entries(json) === 0) {
+                        jQuery('.assigned_results').append('Geen toegewezen producten.')
+                    } else {
+                        let keys = Object.keys(json)
+                        for(let a = 0 ; a < keys.length ; a++) {
+                            let thisKey = keys[a]
+                            jQuery('.assigned_results').append('<button class="button is-small remove-woo-product" id="'+json[thisKey].sku+'"><span>'+json[thisKey].title+'</span><span class="icon is-small"><i class="dashicons dashicons-no"></i></span></button>')
+                        }
+                        let removeButtons = document.getElementsByClassName('remove-woo-product')
+                        for (var i = 0; i < removeButtons.length; i++) {
+                            removeButtons[i].addEventListener('click', function() {
+                                let clickedButton = document.getElementById(this.id)
+                                clickedButton.classList.add('is-loading')
+                                removeWooProduct(uuid,this.id,searchInputText)
+                            })
+                        }
+                    }
+                }
+                
+                function addButtonUnassigned(json,searchInputText){
+                    jQuery('.search_results').empty()
+                    if(json == null || Object.entries(json) === 0) {
+                        jQuery('.search_results').append('Geen producten gevonden.')
+                    } else {
+                        let keys = Object.keys(json)
+                        for(let a = 0 ; a < keys.length ; a++) {
+                            let thisKey = keys[a]
+                            jQuery('.search_results').append('<button class="button is-warning is-small add-woo-product" id="'+json[thisKey].sku+'"><span>'+json[thisKey].title+'</span><span class="icon is-small"><i class="dashicons dashicons-plus"></i></span></button>')
+                        }
+
+                        let addButtons = document.getElementsByClassName('add-woo-product')
+                        for (var i = 0; i < addButtons.length; i++) {
+                            addButtons[i].addEventListener('click', function()  {
+                                let clickedButton = document.getElementById(this.id)
+                                clickedButton.classList.add('is-loading')
+                                addWooProduct(uuid,this.id,searchInputText)
+                            })
+                        }
+                    }
+                }
+
+                function addWooProduct(uuid,sku,searchInputText) {
+                    console.log('add_wooreader_woocommerce_link',uuid,sku)
+                    jQuery.post(ajaxurl , {
+                        action : 'add_wooreader_woocommerce_link' ,
+                        uuid : uuid ,
+                        sku : sku    
+                    } , function(response) {
+                        console.log(response)
+                        getWooProducts(searchInputText,searchInputText)
+                    })
+                }
+
+                function removeWooProduct(uuid,sku,searchInputText) {
+                    console.log('remove_wooreader_woocommerce_link',uuid,sku)
+                    jQuery.post(ajaxurl , {
+                        action : 'remove_wooreader_woocommerce_link' ,
+                        uuid : uuid ,
+                        sku : sku    
+                    } , function(response) {
+                        console.log(response)
+                        getWooProducts(searchInputText)
+                    })
+                }
+            getWooProducts()
+        </script>
         <hr />
 
     <h1>Files</h1>
@@ -338,47 +494,7 @@ function woo_reader_edit_document($uuid = null) {
             <div id="file-pane" style="flex: 1 1 auto; overflow: auto;">
             </div>
         </div>
-        <!--
-        <div class="panel is-info column is-one-third" style="display: flex; flex-flow: column; height: 100%;">
-            <p class="panel-heading" style=" flex: 0 1 auto;">Info</p>
-            <div id="file-pane" style="flex: 1 1 auto; overflow: auto;">
-                foo - bar
-            </div>
-        </div>
-        -->
-
-            <!-- AJAX call to get filelist + actions to set MAIN file / select upload folder / delete files-folders -->
     </div>
-
-    <script type="text/javascript">
-        BulmaTagsInput.attach();
-        //document.addEventListener('DOMContentLoaded', function() {
-        //let tagsInput = document.getElementById('tags-with-source');
-        //tagsInput.BulmaTagsInput().add(['john', 'jane']);
-        /**
-        let bti = new BulmaTagsInput(tagsInput, {
-            add : ['john' , 'jane'] ,
-            closeDropdownOnItemSelect: false,
-            freeInput: false,
-            caseSensitive : false ,
-            clearSelectionOnTyping: true,
-            highlightDuplicate: true,
-            source : async function(value) {
-                // Value equal input value
-                // We can then use it to request data from external API
-                return await fetch(ajaxurl + '?action=get_woo_demo&value=' + value)
-                    .then(function(response) {
-                        return response.json();
-                    });
-            } ,
-            itemText : 'post_title' ,
-            itemValue : 'sku' 
-        }) 
-        **/
-        //tagsInput.BulmaTagsInput().item();
-    //}, false);
-
-    </script>
 </div>
 
 
@@ -393,13 +509,16 @@ function woo_reader_edit_document($uuid = null) {
         function loadWooreaderDocumentData(getWooreaderDocumentData) {
             jQuery.post(ajaxurl , getWooreaderDocumentData , function(wooreaderDocument) {
                 let data = JSON.parse(wooreaderDocument)
+                //console.log(data.doc[0])
                 jQuery("input[name=title]").val(data.doc.title)
                 jQuery("input[name=author]").val(data.doc.author)
+                jQuery("input[name=isbn]").val(data.doc.isbn)
             })
         }
         jQuery('#save-metadata').on('click', function() {
             let title = jQuery("input[name=title]").val()
             let author = jQuery("input[name=author]").val()
+            let isbn = jQuery("input[name=isbn]").val()
             //if(title === '' && author === '') {
             //    jQuery("#save-medata-confirm").html('<span class="icon-text"><span class="icon has-text-danger"><i class="dashicons dashicons-no"></i></span><span>No changes detected.</span></span>');
             //    setTimeout(function(){ jQuery('#save-medata-confirm').empty() }, 3000);
@@ -411,11 +530,13 @@ function woo_reader_edit_document($uuid = null) {
                     action : 'save_metadata' ,
                     title : title ,
                     author : author ,
+                    isbn : isbn ,
                     uuid : '<?= $uuid; ?>'
                 }
                 jQuery.post(ajaxurl , data , function(response) {
                     let resp = JSON.parse(response)
-                    jQuery('#save-metadata').attr('enabled')   
+                    jQuery('#save-metadata').attr('enabled')
+                    data.action = 'get_wooreader_document_data'   
                     if(resp.succes === true) {
                         jQuery("#save-medata-confirm").html('<span class="icon-text"><span class="icon has-text-success"><i class="dashicons dashicons-yes"></i></span><span>Changes saved.</span></span>');
                         loadWooreaderDocumentData(data)
@@ -668,6 +789,7 @@ function woo_reader_edit_document($uuid = null) {
 }
 ?>
 <?php
+
 add_action( 'wp_ajax_dropzone_upload', 'dropzone_upload' );
 add_action( 'wp_ajax_save_metadata', 'save_metadata' );
 add_action( 'wp_ajax_get_wooreader_document_data', 'get_wooreader_document_data' );
@@ -676,6 +798,9 @@ add_action( 'wp_ajax_load_list_page', 'load_list_page' );
 add_action( 'wp_ajax_load_file_list', 'load_file_list' );
 add_action( 'wp_ajax_update_default_files', 'update_default_files' );
 add_action( 'wp_ajax_get_woo_demo', 'get_woo_demo' );
+add_action( 'wp_ajax_get_woo_products', 'get_woo_products' );
+add_action( 'wp_ajax_remove_wooreader_woocommerce_link', 'remove_wooreader_woocommerce_link' );
+add_action( 'wp_ajax_add_wooreader_woocommerce_link', 'add_wooreader_woocommerce_link' );
 
 function get_woo_demo() {
     //echo json_encode(['foo' , 'bar']);
@@ -693,6 +818,7 @@ function dropzone_upload() {
     $path = STORING_DIRECTORY . '/uploads/wooreader/' . $_POST['uuid'] . DIRECTORY_SEPARATOR . $_POST['uploadTo'] . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR,$folder);
     //echo json_encode([ $_FILES , $_POST , $path ]);
     //wp_die();
+    //Chunking uit dropzone voorzien...
     foreach ($_FILES as $key => $file) {
         if(!is_dir($path)) {
             mkdir($path);
@@ -733,12 +859,13 @@ function load_list_page() {
 function save_metadata() : string {
     global $wpdb;
     $table = $wpdb->prefix . "wooreader_documents";
-    $data = ["author" => $_POST['author'] , "title" => $_POST['title']];
-    $dataFormat = ["%s" , "%s"];
+    $data = ["author" => $_POST['author'] , "title" => $_POST['title'] , 'isbn' => $_POST['isbn']];
+    $dataFormat = ["%s" , "%s" , "%s"];
     $where = ["uuid" => $_POST['uuid']];
     $whereFormat = ["%s"];
     $title = $_POST['title'];
     $author = $_POST['author'];
+    $isbn = $_POST['isbn'];
     $doUpdate = $wpdb->update($table , $data , $where , $dataFormat , $whereFormat);
     echo json_encode(['succes' => (bool) $doUpdate , 'message' => $wpdb->last_query ] );
     wp_die();
@@ -767,19 +894,55 @@ function get_wooreader_document(string $uuid = null) : array {
     //return stripslashes_deep($q);   
     return $q;   
 }
-function get_woocommerce_products($published = true) : array {
+
+function get_woocommerce_products() : array {
     global $wpdb;
-    $query = "SELECT a.id,a.post_title,b.sku FROM `".$wpdb->prefix."posts` a JOIN `".$wpdb->prefix."wc_product_meta_lookup` b ON a.id = b.product_id WHERE a.`post_type` = 'product'";
+    
+    $query = "SELECT a.id,a.post_title,a.post_excerpt,a.post_content,b.sku,c.wooreader_uuid FROM `" . $wpdb->prefix . "wooreader_woocommerce_link` c RIGHT OUTER JOIN `" . $wpdb->prefix . "wc_product_meta_lookup` b ON c.woocommerce_sku = b.sku RIGHT OUTER JOIN `" . $wpdb->prefix . "posts` a ON a.id = b.product_id WHERE a.`post_type` = 'product'";
     $q = $wpdb->get_results($query);
-    return stripslashes_deep($q);
+    foreach($q as $product) {
+        $list[$product->sku]['title'] = $product->post_title;
+        $list[$product->sku]['content'] = strip_tags($product->post_content);
+        $list[$product->sku]['excerpt'] = strip_tags($product->post_excerpt);
+        $list[$product->sku]['sku'] = $product->sku;
+        $list[$product->sku]['wooreader_uuid'][] = $product->wooreader_uuid;
+    }
+    return $list;
+    wp_die();
 }
+
+function get_woo_products() {
+    #return json_encode(['foo']);
+    $uuid = isset($_GET['uuid']) ? $_GET['uuid'] : null;
+    if($uuid == null) {
+        echo json_encode([]);
+        wp_die();
+    }
+
+    $productList = get_woocommerce_products();
+    #return json_encode([$uuid]);
+    #wp_die();
+    foreach($productList as $sku => $productData) {
+        if(in_array($uuid, $productData['wooreader_uuid'])) {
+            $assigned[$sku] = $productList[$sku];
+        } else {
+            $unassigned[$sku] = $productList[$sku];
+        }
+    }
+
+    echo json_encode(['assigned' => $assigned , 'unassigned' => $unassigned]);
+    wp_die();
+}
+
 function get_wooreader_document_data() {
     $uuid = $_POST['uuid'];
     $doc = get_wooreader_document($uuid);
     $title = isset($doc[0]->title) ?  $doc[0]->title : null;
     $author = isset($doc[0]->author) ?  $doc[0]->author : null; 
+    $isbn = isset($doc[0]->isbn) ?  $doc[0]->isbn : null; 
     $doc['title'] = $title; 
     $doc['author'] = $author;
+    $doc['isbn'] = $isbn;
     $ret['doc'] = $doc;
     echo json_encode($ret); 
     wp_die();
@@ -844,6 +1007,52 @@ function update_default_files() {
     $doUpdate = $wpdb->update($table , $data , $where , $dataFormat , $whereFormat);
 
     echo json_encode([(bool)$doUpdate]);
+    wp_die();
+}
+
+function remove_wooreader_woocommerce_link() {
+    global $wpdb;
+    if(!isset($_POST['sku']) || !isset($_POST['uuid'])) {
+        echo json_encode(['error']);
+        wp_die();
+    }
+    $table = $wpdb->prefix ."wooreader_woocommerce_link";
+    $where = [
+        'woocommerce_sku' => $_POST['sku'] ,
+        'wooreader_uuid' => $_POST['uuid']
+    ];
+    $format = ["%s" , "%s"];
+    #echo json_encode([$table,$where]);
+    #wp_die();
+    $doDelete = $wpdb->delete($table,$where,$format); 
+    if(!$doDelete)  {
+        echo json_encode([ $wpdb->last_error , $wpdb->print_error() ]);
+        wp_die();
+    }
+    echo json_encode($doDelete);
+    wp_die();
+}
+
+function add_wooreader_woocommerce_link() {
+    global $wpdb;
+    if(!isset($_POST['sku']) || !isset($_POST['uuid'])) {
+        echo json_encode(['error']);
+        wp_die();
+    }
+    $table = $wpdb->prefix ."wooreader_woocommerce_link";
+    $where = [
+        'woocommerce_sku' => $_POST['sku'] ,
+        'wooreader_uuid' => $_POST['uuid']
+    ];
+    $format = ["%s" , "%s"];
+    #echo json_encode([$table,$where]);
+    #wp_die();
+    $doInsert = $wpdb->insert($table,$where,$format); 
+    if(!$doInsert) {
+        echo json_encode([ $wpdb->last_error , $wpdb->print_error() ]);
+        wp_die();
+    }
+    echo json_encode($doInsert);
     wp_die();
 }
 ?>
