@@ -47,6 +47,7 @@ function setup_wooreader() {
                 `mainfile` varchar(50) DEFAULT NULL,
                 `coverimage` varchar(50) DEFAULT NULL,
                 `published` tinyint(1) NOT NULL DEFAULT 0,
+                `description` text DEFAULT NULL
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uuid` (`uuid`)
                 ) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" ,
@@ -368,6 +369,12 @@ function woo_reader_edit_document($uuid = null) {
             </span>
             </div>
         </div>
+        <div class="field">
+            <label class="label">Description:</label>
+            <textarea name="textarea" id="description" type="text" placeholder="Description" cols="55" rows="4"> 
+            </textarea>
+            </div>
+        </div>
         <!-- 
         <div class="field">
             <label class="label">ISBN:</label>
@@ -547,16 +554,17 @@ function woo_reader_edit_document($uuid = null) {
         function loadWooreaderDocumentData(getWooreaderDocumentData) {
             jQuery.post(ajaxurl , getWooreaderDocumentData , function(wooreaderDocument) {
                 let data = JSON.parse(wooreaderDocument)
-                //console.log(data.doc[0])
                 jQuery("input[name=title]").val(data.doc.title)
                 jQuery("input[name=author]").val(data.doc.author)
                 jQuery("input[name=isbn]").val(data.doc.isbn)
+                jQuery("#description").val(data.doc.description)
             })
         }
         jQuery('#save-metadata').on('click', function() {
             let title = jQuery("input[name=title]").val()
             let author = jQuery("input[name=author]").val()
             let isbn = jQuery("input[name=isbn]").val()
+            let description = jQuery("#description").val()
             //if(title === '' && author === '') {
             //    jQuery("#save-medata-confirm").html('<span class="icon-text"><span class="icon has-text-danger"><i class="dashicons dashicons-no"></i></span><span>No changes detected.</span></span>');
             //    setTimeout(function(){ jQuery('#save-medata-confirm').empty() }, 3000);
@@ -569,6 +577,7 @@ function woo_reader_edit_document($uuid = null) {
                     title : title ,
                     author : author ,
                     isbn : isbn ,
+                    description : description ,
                     uuid : '<?= $uuid; ?>'
                 }
                 jQuery.post(ajaxurl , data , function(response) {
@@ -902,13 +911,14 @@ function load_list_page() {
 function save_metadata() : string {
     global $wpdb;
     $table = $wpdb->prefix . "wooreader_documents";
-    $data = ["author" => $_POST['author'] , "title" => $_POST['title'] , 'isbn' => $_POST['isbn']];
-    $dataFormat = ["%s" , "%s" , "%s"];
+    $data = ["author" => $_POST['author'] , "title" => $_POST['title'] , 'isbn' => $_POST['isbn'] , 'description' => $_POST['description']];
+    $dataFormat = ["%s" , "%s" , "%s" , "%s"];
     $where = ["uuid" => $_POST['uuid']];
     $whereFormat = ["%s"];
     $title = $_POST['title'];
     $author = $_POST['author'];
     $isbn = $_POST['isbn'];
+    $description = $_POST['description'];
     $doUpdate = $wpdb->update($table , $data , $where , $dataFormat , $whereFormat);
     echo json_encode(['succes' => (bool) $doUpdate , 'message' => $wpdb->last_query ] );
     wp_die();
@@ -983,9 +993,11 @@ function get_wooreader_document_data() {
     $title = isset($doc[0]->title) ?  $doc[0]->title : null;
     $author = isset($doc[0]->author) ?  $doc[0]->author : null; 
     $isbn = isset($doc[0]->isbn) ?  $doc[0]->isbn : null; 
+    $description = isset($doc[0]->description) ?  $doc[0]->description : null; 
     $doc['title'] = $title; 
     $doc['author'] = $author;
     $doc['isbn'] = $isbn;
+    $doc['description'] = $description;
     $ret['doc'] = $doc;
     echo json_encode($ret); 
     wp_die();
