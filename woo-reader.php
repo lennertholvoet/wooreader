@@ -17,16 +17,18 @@ define('MAX_UPLOAD_SIZE', $max_upload);
 wp_register_style('bulma-css', WPFP_PATH . '/node_modules/bulma/css/bulma.min.css' );
 wp_register_style('dropzone-css', WPFP_PATH . '/js/dropzone/dist/dropzone.css' );
 wp_register_style('tree-css', WPFP_PATH . '/css/tree.css' );
-wp_register_style('bulma-tagsinput-css', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css');
+//wp_register_style('bulma-tagsinput-css', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css');
 wp_register_style('wooreader-css', WPFP_PATH . '/css/wooreader-css.css');
 wp_enqueue_style('bulma-css');
 wp_enqueue_style('dropzone-css');
 wp_enqueue_style('tree-css');
-wp_enqueue_style('bulma-tagsinput-css');
+//wp_register_style('bulma-switch-css', WPFP_PATH . '/node_modules/bulma-switch/dist/css/bulma-switch.min.css');
+//wp_enqueue_style('bulma-tagsinput-css');
 wp_enqueue_style('wooreader-css');
 wp_enqueue_script('dropzone-js', WPFP_PATH . '/js/dropzone/dist/dropzone.js');
 wp_enqueue_script('tree-js', WPFP_PATH . '/js/treejs/tree.js');
-wp_enqueue_script('bulma-tagsinput-js', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/js/bulma-tagsinput.min.js');
+//wp_enqueue_style('bulma-switch-css');
+//wp_enqueue_script('bulma-tagsinput-js', WPFP_PATH . '/node_modules/@creativebulma/bulma-tagsinput/dist/js/bulma-tagsinput.min.js');
 ?>
 <?php
 function setup_wooreader() {
@@ -70,32 +72,53 @@ function setup_wooreader() {
 
 }
 
-function add_my_custom_page() {
+function add_wooreader_public_page() {
     // Create post object
     $my_post = array(
-      'post_title'    => wp_strip_all_tags( 'Woo Test' ),
-      'post_status'   => 'publish' ,
-      'post_type'     => 'page',
-      'post_content' => '[greeting]'
-     );
-
-    // Insert the post into the database
+        'post_title'    => wp_strip_all_tags( 'WooReader' ),
+        'post_status'   => 'publish' ,
+        'post_type'     => 'page',
+        'post_content' => '[greeting]'
+    );
     wp_insert_post( $my_post );
 }
 
-register_activation_hook(__FILE__, 'add_my_custom_page');
+register_activation_hook(__FILE__, 'add_wooreader_public_page');
 
 add_action( 'admin_menu', 'woo_reader_options_page' );
 
 // function that runs when shortcode is called
 function wpb_demo_shortcode() {
- 
+    global $wpdb;
 // Things that you want to do.
-    $message = 'Hello,<br />'; 
-    $message .= '<pre>' . print_r(wp_get_current_user()) . '</pre>';
- 
-// Output needs to be return
+    $message = '<p>Hello, ' . wp_get_current_user()->data->display_name . '</p>'; 
+    #$message .= '<!-- <pre>' . print_r(wp_get_current_user()) . '</pre> -->';
+    $query = "SELECT c.sku,b.`status`,d.wooreader_uuid,e.author,e.title,e.coverimage FROM  ". $wpdb->prefix . "wc_order_product_lookup a JOIN  ". $wpdb->prefix . "wc_order_stats b ON b.order_id = a.order_id JOIN ". $wpdb->prefix . "wc_product_meta_lookup c ON a.product_id = c.product_id JOIN ". $wpdb->prefix . "wooreader_woocommerce_link d ON c.sku = d.woocommerce_sku  JOIN ".$wpdb->prefix . "wooreader_documents e ON d.wooreader_uuid = e.uuid  WHERE e.published = 1 AND a.customer_id = " . wp_get_current_user()->data->ID;
+    $bought_items = $wpdb->get_results($query);
+    /**
+    $message .= '<hr />'; 
+    $message .= '<pre>' . print_r($bought_items) . '</pre>' ; 
+    **/
+    if(count($bought_items) < 1) {
+        $message .= "<p>Nog geen items zichtbaar</p>";
+        return $message;
+        wp_die();
+    }
+
+    //$message .= "<p>Items komen hier.</p>";
+    foreach($bought_items as $digitalItem) {
+        $uuid = $digitalItem->wooreader_uuid;
+        $sku = $digitalItem->sku;
+        $title = $digitalItem->title;
+        $image = dirname($_SERVER['SCRIPT_NAME']) . "/wp-content/uploads/wooreader/" . $uuid . "/" . $digitalItem->coverimage; 
+        $image = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $image);
+        $message .= '<div class="wooreader-item">';
+        $message .= '<h4>'.$title.'</h4>';
+        $message .= '<img src="'.$image.'" alt="'.$title.'" width="250" />';
+        $message .= '</div>';
+    }
     return $message;
+    wp_die();
 }
 // register shortcode
 add_shortcode('greeting', 'wpb_demo_shortcode');
@@ -161,13 +184,31 @@ function woo_reader_document_list() {
             <tr>
                 <th colspan="3">Title</th>
                 <th>Actions</th>
-                <th>Publish</th>
+                <th>Published</th>
+                <!-- <th>Status</th> -->
             </tr>
         </thead>
         <tbody>
         <?php
         if(count($q) > 0) {
             foreach ($q as $key => $value) {
+                ?>
+                <?php 
+                    switch($value->published) {
+                        case 0:
+                            $publishToggleStatus = '';
+                            $publishToggleTitle = 'publish';
+
+                            $publishStatusIcon = 'dashicons-hidden';
+                            $publishStatusTitle = 'Unpublished';
+                        break;
+                        case 1:
+                            $publishToggleStatus = 'checked';
+                            $publishToggleTitle = 'unpublish';
+                            $publishStatusIcon = 'dashicons-visibility';
+                            $publishStatusTitle = 'Published';
+                        break;
+                    }
                 ?>
                 <tr>
                     <td colspan="3"><b><?= $value->title; ?></b></td>
@@ -176,20 +217,12 @@ function woo_reader_document_list() {
                         <a><span class="dashicons dashicons-trash delete-wooreader-document-click" title="delete" id="delete_<?= $value->uuid; ?>"></span></a>
                     </td>
                     <td>
-                        <?php 
-                            switch($value->published) {
-                                case 0:
-                                    $publishToggleIcon = 'dashicons-hidden';
-                                    $publishToggleTitle = 'publish';
-                                break;
-                                case 1:
-                                    $publishToggleIcon = 'dashicons-visibility';
-                                    $publishToggleTitle = 'unpublish';
-                                break;
-                            }
-                        ?>
-                        <a><span class="dashicons <?= $publishToggleIcon; ?> publishToggle-wooreader-document-click" title="<?= $publishToggleTitle; ?>" id="togglePublish_<?= $value->uuid; ?>"></span></a>
+                        <div class="field">
+                            <input id="togglePublish_<?= $value->uuid; ?>" type="checkbox" class="publishToggle-wooreader-document-click" <?= $publishToggleStatus; ?> title="<?= $publishToggleTitle; ?>">
+                        </div>
+    
                     </td>
+                    <!--<td><span class="dashicons <?= $publishStatusIcon; ?> publishToggle-wooreader-document-click" title="<?= $publishStatusTitle; ?>" id="publishStatus_<?= $value->uuid; ?>"></span></td>-->
                 </tr>
                 <?php
             }
@@ -202,16 +235,17 @@ function woo_reader_document_list() {
                 $('.delete-wooreader-document-click').on('click',function(){
                     console.log(this.id)
                 })
-                $('.publishToggle-wooreader-document-click').on('click',function(){
+                $('.publishToggle-wooreader-document-click').on('change',function(){
                     console.log(this.id)
                     let buttonId = this.id
                     let editId = buttonId.split('_')
 
                     console.log(editId)
                     console.log(editId[1])
+                    let uuid = editId[1]
                     let sendData = {
                         action : 'toggle_published_status' ,
-                        uuid : editId[1]
+                        uuid : uuid
                     }
                     $.ajax({
                         url : ajaxurl ,
@@ -225,7 +259,7 @@ function woo_reader_document_list() {
                             console.log(resp)
                             //resp = JSON.parse(resp)
                             if(resp.success == 1) {
-                                toggleIcons(buttonId)
+                                toggleIcons(buttonId,uuid)
                             } 
                         } , 
                         error : function(a,b,c) {
@@ -234,18 +268,22 @@ function woo_reader_document_list() {
                     })
                     
                 })
-                function toggleIcons(buttonId) {
+                function toggleIcons(buttonId,uuid) {
                     console.log(buttonId)
                     let button = $('#'+buttonId).attr('title')
                     switch(button) {
                         case 'publish' :
                             $('#'+buttonId).attr('title','unpublish')
-                            $('#'+buttonId).removeClass('dashicons-visibility').addClass('dashicons-hidden')
+                            $('#publishStatus_'+uuid).attr('title','Unpublished')
+                            $('#'+buttonId).attr('checked')
+                            $('#publishStatus_'+uuid).removeClass('dashicons-hidden').addClass('dashicons-visibility')
                         break;
 
                         case 'unpublish' :
                             $('#'+buttonId).attr('title','publish')
-                            $('#'+buttonId).removeClass('dashicons-hidden').addClass('dashicons-visibility')
+                            $('#publishStatus_'+uuid).attr('title','Published')
+                            $('#'+buttonId).removeAttr('checked')
+                            $('#publishStatus_'+uuid).removeClass('dashicons-visibility').addClass('dashicons-hidden')
                         break;
                     }
                 }
@@ -605,6 +643,7 @@ function woo_reader_edit_document($uuid = null) {
             jQuery.each(object,function(k,v){
                 if(typeof v == 'string') {
                     let id_append = v.split('.')[0]
+                    id_append = id_append.replaceAll(" ","--")
                     html += '<a class="panel-block selectFile" id="'+ id_string + '___' +id_append+'"><span class="panel-icon is-pulled-right has-text-warning"><i class="dashicons dashicons-star-empty makeMainFile" title="Make main file"></i></span>'
                     if(imageFormats.includes(v.split('.').pop().toLowerCase()) == true) {
                         html += '<span class="panel-icon is-pulled-right has-text-link"><i class="dashicons dashicons-format-image makeCoverImage" title="Make cover"></i></span>'
@@ -674,6 +713,7 @@ function woo_reader_edit_document($uuid = null) {
 
         function loadFolderFiles(id,files,filepane,mainFileSelected,coverFileSelected) {
             console.log(mainFileSelected,coverFileSelected)
+
             let fullId = id
             let folderString = id.split('___').join("&#x200b;/&#x200b;")
             jQuery('.dz-button').html('Upload folders to "' + folderString + '"')
@@ -684,11 +724,13 @@ function woo_reader_edit_document($uuid = null) {
             if(myFiles != "") {
                 jQuery('#'+filepane).html(myFiles) 
                 if(mainFileSelected !== null) {
+                    mainFileSelected = mainFileSelected.replaceAll(" ","--")
                     if('#' + mainFileSelected){
                         jQuery('#' + mainFileSelected + ' .panel-icon .makeMainFile').removeClass('dashicons-star-empty').addClass('dashicons-star-filled').attr('title','Selected Main File')
                     }
                 }
                 if(coverFileSelected !== null) {
+                    coverFileSelected = coverFileSelected.replaceAll(" ","--")
                     if('#' + coverFileSelected) {
                         jQuery('#' + coverFileSelected + ' .panel-icon .makeCoverImage').removeClass('dashicons-format-image').addClass('dashicons-cover-image').attr('title','Selected Cover Image')
                     }
@@ -712,6 +754,7 @@ function woo_reader_edit_document($uuid = null) {
                     file : text ,
                     uuid : '<?= $uuid; ?>'
                 }
+                console.log(data)
                 jQuery.post(ajaxurl , data , function(response) { 
                     if(response[0] === true) {
                         jQuery('.makeCoverImage').removeClass('dashicons-cover-image').addClass('dashicons-format-image').attr('title','Make cover')
@@ -992,7 +1035,7 @@ function update_default_files() {
     $folder = STORING_DIRECTORY . '/uploads/wooreader/' . $_POST['uuid']; 
     $path = explode('___',$_POST['path']);
     $dirList = implode(DIRECTORY_SEPARATOR,$path);
-    $fullFilePath = $dirList . DIRECTORY_SEPARATOR . $_POST['file'];
+    $fullFilePath = $dirList . DIRECTORY_SEPARATOR . html_entity_decode($_POST['file']);
     //echo json_encode([$folder . $fullFilePath]);
     if(!file_exists($folder . DIRECTORY_SEPARATOR . $fullFilePath)) {
         echo json_encode([false, $folder . DIRECTORY_SEPARATOR . $fullFilePath]);

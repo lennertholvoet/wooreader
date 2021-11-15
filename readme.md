@@ -20,9 +20,12 @@ These files could be one on one for a digtal sale, but also to give extra docume
  	- [x] Save connections to DB in UUID - SKU pairs
  - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought (!)
   - [x] First setup is done
+  - [ ] Display bought items with digital content linked
  - [ ] Reader
    - [ ] Browsable by WooCommerce Category
  - [ ] Create Backup / Import option
  	- [ ] Export database
  	- [ ] Zip uploads/wooreader + SQL Files
  	- [ ] Extract ZIP + database import
+ - [ ] localization of admin
+ - [ ] localization of frontend
