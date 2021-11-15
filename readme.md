@@ -12,6 +12,8 @@ These files could be one on one for a digtal sale, but also to give extra docume
  - [x] Set basic metadata (Title And Author)
  - [x] Add more advanced metadata
    - [x] ISBN
+   - [x] Veld beschrijving
+   - [ ] Aantal pagina's (or calculate reading time + use to show progress.)
  - [x] Upload Files to Digital Document
  - [x] Set Main File and Cover Image for Digital Document
  - [ ] Method to use subscription from WooCommerce to access all content
@@ -20,9 +22,12 @@ These files could be one on one for a digtal sale, but also to give extra docume
  	- [x] Save connections to DB in UUID - SKU pairs
  - [ ] Create Page for Logged In Users with all Digital Documents linked to WooCommerce Shop Items they bought (!)
   - [x] First setup is done
-  - [ ] Display bought items with digital content linked
+  - [x] Display digital content - covers linked to purshases
  - [ ] Reader
-   - [ ] Browsable by WooCommerce Category
+   - [ ] Create Designs for overview of items
+   - [ ] Open HTML
+   - [ ] Open PDF (PDF + Progress possible?)
+   - [ ] Save reading-point
  - [ ] Create Backup / Import option
  	- [ ] Export database
  	- [ ] Zip uploads/wooreader + SQL Files
