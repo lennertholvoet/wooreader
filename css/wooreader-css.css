@@ -1,3 +1,7 @@
 .wooreader-item {
 	border:  solid black 2px;
 }
+
+#wpfooter {
+	position: relative;
+}
